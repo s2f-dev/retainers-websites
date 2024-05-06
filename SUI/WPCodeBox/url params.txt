@@ -1,0 +1,18 @@
+miv={inputs.gb_Montly_invoice_volume}&erpSystem={inputs.gd_ERP_System}&apc-noEmployees={inputs.role_apc_Number_of_employees_in_role}&apc-annual={inputs.role_apc_Average_annual_gross_salary}&apc-dataProcess={inputs.role_apc_Percentage_time_spent_on_data_entry}&fa-noEmployees={inputs.role_fa_Number_of_employees_in_role}&fa-annual={inputs.role_fa_Average_annual_gross_salary}&fa-dataProcess={inputs.role_fa_Percentage_time_spent_on_data_entry}&fm-noEmployees={inputs.role_fm_Number_of_employees_in_role}&fm-annual={inputs.role_fm_Average_annual_gross_salary}&fm-dataProcess={inputs.role_fm_Percentage_time_spent_on_data_entry}&cfo-noEmployees={inputs.role_cfo_Number_of_employees_in_role}&cfo-annual={inputs.role_cfo_Average_annual_gross_salary}&cfo-dataProcess={inputs.role_cfo_Percentage_time_spent_on_data_entry}
+
+&atp_dy_erp={inputs.atp_dy_erp}&atp_dy_dup_invoice={inputs.atp_dy_dup_invoice}
+&atp_dy_spen_porders={inputs.atp_dy_spen_porders}
+&atp_dy_monthly_recon = {inputs.atp_dy_monthly_recon}
+&atp_dy_ap_process={inputs.atp_dy_ap_process}
+
+&apc-communication={inputs.role_apc_Percentage_time_spent_on_communication_in_the_AP_process}
+&fa-communication={inputs.role_fa_Percentage_time_spent_on_communication_in_the_AP_process}
+&fm-communication={inputs.role_fm_Percentage_time_spent_on_communication_in_the_AP_process}
+
+&apc-findingIncorrect={inputs.role_apc_Percentage_of_time_spent_finding_correcting_incorrectly_paid_invoices}
+&fa-findingIncorrect={inputs.role_fa_Percentage_of_time_spent_finding_correcting_incorrectly_paid_invoices}
+&fm-findingIncorrect={inputs.role_fm_Percentage_of_time_spent_finding_correcting_incorrectly_paid_invoices}
+
+&apc-otherTask={inputs.role_apc_Percentage_time_spent_on_other_tasks_in_relation_to_the_AP_process}
+&fa-otherTask={inputs.role_fa_Percentage_time_spent_on_other_tasks_in_relation_to_the_AP_process}
+&fm-otherTask={inputs.role_fm_Percentage_time_spent_on_other_tasks_in_relation_to_the_AP_process}
