@@ -1,17 +1,15 @@
 <?php
 /*
-Plugin Name: STF Custom Foo Event CSV
-Description: Download Foo Event Attendies CSV - Shortcode: [events-list]
+Plugin Name: STF Custom Foo Event Tickets
+Description: Download Foo Event Attendies CSV - Shortcode: [events-ticket] Param: access=<users_id>
 Version: 1.0
 */
 
 
 // Shortcode
-add_shortcode('events-list', 'display_database_query');
+add_shortcode('events-ticket', 'display_database_query_tickets');
 
-
-// Function to add a menu item in the admin side menu
-function display_database_query() {
+function display_database_query_tickets() {
     ob_start();
     ?>
     <div class="wrap">
@@ -19,51 +17,28 @@ function display_database_query() {
         <?php
         // LIST ALL EVENTS
         global $wpdb; 
+		$author = $_GET['access'];
+		$tag = $_GET['tag'];
         $post_table = $wpdb->prefix . 'posts'; 
         $post_meta_table = $wpdb->prefix . 'postmeta'; 
 
-		// FILTERS
-		$filteryByTenses = $_GET['event-tenses'];
-		$filteryByName = $_GET['event-name'];
-
-		// EVENT TENSES Filter
-		$byTenses = '';
-		$pastSelected = '';
-		$upcomingSelected = '';
-		if($filteryByTenses){
-
-			$currentDate = date('Y-m-d');
-			
-			// Present & Past Event
-			if($filteryByTenses == 'past'){
-				$pastSelected = 'selected';
-				$byTenses = "AND pm.meta_value <='$currentDate'";
-			}
-
-			// Future Event
-			if($filteryByTenses == 'upcoming'){
-				$upcomingSelected = 'selected';
-				$byTenses = "AND pm.meta_value >='$currentDate'";
-			}
+		if($tag){
+			// $author ="AND post_author=$author";
+		}else{
+			// $author = '';
+			echo 'User role does not have permission to export attendee details. Please contact site admin.';
 		}
-
-		// EVENT NAME Filter
-		$byEventName = '';
-		if($filteryByName){
-			$eventName = strtoupper($filteryByName);
-			$byEventName = "AND p.post_title LIKE '%$eventName%'";
-		}
-
+        
 
 $results = $wpdb->get_results(
     $wpdb->prepare(
-        "SELECT
-		pm.post_id,
-		p.ID,
-		pm.meta_id,
-		pm.meta_value,
-		p.post_title,
-		(
+        "SELECT pm.post_id, p.ID, pm.meta_id, pm.meta_value, p.post_title, 
+        (SELECT COUNT(*) FROM {$wpdb->posts} 
+         JOIN {$wpdb->postmeta} ON {$wpdb->posts}.ID = {$wpdb->postmeta}.post_id 
+         WHERE {$wpdb->postmeta}.meta_key = 'WooCommerceEventsProductID' 
+         AND {$wpdb->postmeta}.meta_value = p.ID 
+         AND {$wpdb->posts}.post_status = 'publish') as 'sales', 
+         (
 		SELECT
 			SUM(
 				IF(
@@ -73,179 +48,54 @@ $results = $wpdb->get_results(
 				)
 			)
 		FROM
-			{$wpdb->posts} pv
-		JOIN {$wpdb->postmeta} pmv ON
+			dzz_posts pv
+		JOIN dzz_postmeta pmv ON
 			pv.ID = pmv.post_id
 		WHERE
 			pv.post_parent = p.ID
 		) AS variations_stock,
-		(
-			SELECT
-				pmv.meta_value
-			FROM
-				{$wpdb->posts} pv
-			JOIN {$wpdb->postmeta} pmv ON
-				pv.ID = pmv.post_id
-			WHERE
-				pv.post_parent = p.ID 
-			AND 
-				pmv.meta_key = '_stock' 
-			LIMIT 1 
-		) AS inservice_stock,
-		(
-			SELECT
-				pmv.meta_value
-			FROM
-				{$wpdb->posts} pv
-			JOIN {$wpdb->postmeta} pmv ON
-				pv.ID = pmv.post_id
-			WHERE
-				pv.post_parent = p.ID 
-			AND 
-				pmv.meta_key = '_stock' 
-			LIMIT 1 
-			OFFSET 1 
-		) AS public_stock,
-		(
-			SELECT
-				COUNT(*)
-			FROM
-				{$wpdb->postmeta} pms
-			WHERE
-				pms.meta_key = 'WooCommerceEventsVariationID' 
-			AND 
-				pms.meta_value 
-			IN (
-					SELECT pvv.ID 
-					FROM {$wpdb->posts} pvv 
-					WHERE pvv.post_type = 'product_variation' 
-					AND pvv.post_parent = p.ID
-					AND pvv.ID = (SELECT pt.ID FROM {$wpdb->posts} pt WHERE post_excerpt = 'Type: In-Service' AND pt.post_parent = p.ID)
-				) 
-		) AS 'inservice_sales',
-		(
-			SELECT
-				COUNT(*)
-			FROM
-				{$wpdb->postmeta} pms
-			WHERE
-				pms.meta_key = 'WooCommerceEventsVariationID' 
-			AND 
-				pms.meta_value 
-			IN (
-					SELECT pvv.ID 
-					FROM {$wpdb->posts} pvv 
-					WHERE pvv.post_type = 'product_variation' 
-					AND pvv.post_parent = p.ID
-					AND pvv.ID = (SELECT pt.ID FROM {$wpdb->posts} pt WHERE post_excerpt = 'Type: Public' AND pt.post_parent = p.ID)
-				) 
-		) AS 'public_sales',
-		(
-			SELECT
-				COUNT(*)
-			FROM
-				{$wpdb->posts}
-			JOIN {$wpdb->postmeta} ON {$wpdb->posts}.ID = {$wpdb->postmeta}.post_id
-			WHERE
-				{$wpdb->postmeta}.meta_key = 'WooCommerceEventsProductID' AND {$wpdb->postmeta}.meta_value = p.ID AND {$wpdb->posts}.post_status = 'publish'
-		) AS 'sales',
-		(
-			SELECT
-				meta_value
-			FROM
-				{$wpdb->postmeta}
-			WHERE
-				post_id = p.ID AND meta_key = '_stock'
-		) AS 'stock'
-	FROM
-		{$wpdb->posts} p
-	INNER JOIN {$wpdb->postmeta} pm ON
-		p.ID = pm.post_id
-	WHERE
-		p.post_type = 'product' $byTenses AND p.post_status = 'publish' AND pm.meta_key = 'WooCommerceEventsDate' AND pm.meta_value <> '' $byEventName
-	GROUP BY
-		p.post_title
-	ORDER BY
-		pm.meta_value
-	DESC
-	",
-        array()
+        (SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = p.ID AND meta_key = '_stock') as 'stock' 
+        FROM {$wpdb->posts} p 
+        JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
+        WHERE p.post_type = 'product' 
+        AND p.post_status = 'Publish' 
+        AND pm.meta_key = 'WooCommerceEventsDate' 
+        AND pm.meta_value <> '' 
+        AND p.ID IN (SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'local-network-house' AND meta_value = %s)
+        $byTenses $byEventName 
+        GROUP BY p.post_title 
+        ORDER BY pm.meta_value DESC",
+        $tag
     )
 );
 
-        if ($results) {
-            echo '<div class="event-filters"><h3>Events:</h3>';
-			echo '
-			<form method="get" style="display: flex;flex-direction: row;gap: 40px;margin: 0em 0 3em 0;">
-			<select name="event-tenses">
-				<option value="all">All</option>
-				<option value="past" '.$pastSelected .'>Past</option>
-				<option value="upcoming" '.$upcomingSelected.'>Upcoming</option>
-			</select>
-			<input type="text" name="event-name" placeholder="Search event name." value="'.$filteryByName.'"/>
-			<input type="submit" value="Filter" style="border: none;">
-			</form>
-			
-			</div>';
+        if ($results && $tag) {
+            echo '<h3>Events:</h3>';
             echo '<table>';
-            echo '<tr>
-				<td width="130"><b>Event Date<b></td>
-				<td><b>Event</b></td> 
-				<td width="150"><b>Public Tickets</b></td> 
-				<td width="180"><b>Inservice Tickets</b></td> 
-				<td width="180"><b>Total Tickets Sold</b></td> 
-				<td width="200"><b>Total Ticket Capacity</b></td> 
-				<td width="150"><b>Action</b></td>
-				</tr>';
+            echo '<tr><td><b>Event Date<b></td><td><b>Event</b></td> <td><b>Ticket Sold</b></td> <td><b>Remaining Available Tickets</b></td> <td><b>Action</b></td></tr>';
 
             foreach ($results as $row) {
-				
-				// STOCKS & SALES
-				// Product
 				$total_tickets = $row->stock + $row->sales;
-				$stocks = $total_tickets;
                 if(!$available_tickets){
                     $available_tickets = 0;
                 } 
 
-				// Variations
+                $stocks = $total_tickets;
 				$variations_stock = $row->variations_stock;
 				if($variations_stock){
-					$stocks = $variations_stock + $row->sales;
+					$stocks = $variations_stock;
 				}
-				// END STOCKS & SALES
-
-				// VARIATION STOCKS
-				$inservice_stocks = $row->inservice_stock;
-				$public_stocks = $row->public_stock;
-
-				// VARIATIONS SALES
-				$inservice_sales = $row->inservice_sales;
-				$public_sales = $row->public_sales;
-
-				$inservice_stocks_sales_label = '';
-				$public_stocks_sales_label = '';
-				if($variations_stock){
-					$inservice_stocks_sales_total = $inservice_sales + $inservice_stocks;
-					$public_stocks_sales_total = $public_sales + $public_stocks;
-
-					$inservice_stocks_sales_label = $inservice_sales.' of '.$inservice_stocks_sales_total;
-					$public_stocks_sales_label = $public_sales.' of '.$public_stocks_sales_total;
-				}
-	
                 echo '<tr>';
                 echo '<td>' . $row->meta_value. '</span></td>';
-                echo '<td><a href="http://jamiew109.sg-host.com/wp-admin/edit.php?post_type=event_magic_tickets&event_id='.$row->post_id.'" target="_blank">' . esc_html($row->post_title) . '</span></a></td>';
-                echo '<td>' . esc_html($public_stocks_sales_label) . '</span></td>';
-                echo '<td>' . esc_html($inservice_stocks_sales_label ) . '</span></td>';
+                echo '<td>' . esc_html($row->post_title) . '</span></td>';
                 echo '<td>' . esc_html($row->sales) . '</span></td>';
                 echo '<td>' . esc_html($stocks) . '</span></td>';
-                echo '<td> <a href="http://jamiew109.sg-host.com/wp-admin/admin-ajax.php?action=custom_events_csv&event='.$row->ID.'"> Download CSV </td>';
+                echo '<td> <a href="https://littlescientists.org.au/wp-admin/admin-ajax.php?action=custom_events_csv_ticket&event='.$row->ID.'"> Download CSV </td>';
                 echo '</tr>';
             }
             echo '</table>';
         } else {
-            echo 'No results found'. $$results;
+            echo 'No results found';
         }
 
         return ob_get_clean();
@@ -259,9 +109,9 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
  /**
 	 * Generates attendee CSV export.
 	 */
-	function custom_events_csv() {
+	function custom_events_csv_ticket() {
 
-		/*if ( ! current_user_can( 'publish_event_magic_tickets' ) ) {
+		/**if ( ! current_user_can( 'publish_event_magic_tickets' ) ) {
 
 			echo 'User role does not have permission to export attendee details. Please contact site admin.';
 			exit();
@@ -297,19 +147,18 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
 		$ticket_id_label            = __( 'TicketID', 'woocommerce-events' );
 		$ticket_id_numeric_label    = __( 'TicketID Numeric', 'woocommerce-events' );
 		$order_id_label             = __( 'OrderID', 'woocommerce-events' );
-		$attendee_first_name_label  = __( 'First Name', 'woocommerce-events' );
+		$attendee_first_name_label  = __( 'Attendee First Name', 'woocommerce-events' );
 		// $attendee_first_name_label  = __( 'Attendee First Name', 'woocommerce-events' );
-		$attendee_last_name_label   = __( 'Surname', 'woocommerce-events' );
+		$attendee_last_name_label   = __( 'Attendee Surname', 'woocommerce-events' );
 		// $attendee_last_name_label   = __( 'Attendee Last Name', 'woocommerce-events' );
 		// $attendee_email_label       = __( 'Attendee Email', 'woocommerce-events' );
 		$attendee_email_label       = __( 'Email', 'woocommerce-events' );
 		$ticket_status_label        = __( 'Ticket Status', 'woocommerce-events' );
 		$ticket_type_label          = __( 'Ticket Type', 'woocommerce-events' );
-		// $ticket_variation_label     = __( 'Variation', 'woocommerce-events' );
 		$ticket_variation_label     = __( 'Ticket Type', 'woocommerce-events' );
 		$attendee_telephone_label   = __( 'Mobile', 'woocommerce-events' );
 		// $attendee_telephone_label   = __( 'Attendee Telephone', 'woocommerce-events' );
-		// $attendee_company_label     = __( 'Attendee Company', 'woocommerce-events' );
+		$attendee_company_label     = __( 'Attendee Company', 'woocommerce-events' );
 		$attendee_company_label     = __( 'Org Name', 'woocommerce-events' );
 		$attendee_designation_label = __( 'Attendee Designation', 'woocommerce-events' );
 		$purchaser_first_name_label = __( 'Purchaser First Name', 'woocommerce-events' );
@@ -335,7 +184,6 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
 		$billing_phone_label       = __( 'Billing Phone', 'woocommerce-events' );
 
 
-		$order_total      = __( 'Amount Paid', 'woocommerce-events' );
 		$landline      = __( 'Landline', 'woocommerce-events' );
 		$job_title      = __( 'Job Title', 'woocommerce-events' );
 		$teachers_reg      = __( 'Teacher Reg #', 'woocommerce-events' );
@@ -345,56 +193,72 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
 		$days_attended      = __( 'Days Attended', 'woocommerce-events' );
 		$postal_code  = __( 'Postalcode', 'woocommerce-events' );
 		$notes  = __( 'Notes', 'woocommerce-events' );
-		$terms  = __( 'I have read and agree to the above terms and conditions.', 'woocommerce-events' );
-		$coupons = __('Coupons','woocommerce-events');
 		$compulsory = __('Are you a Little Scientists House?','woocommerce-events');
-
-		// Attendies
-		$attendee_street = __('Street','woocommerce-events');
-		$attendee_suburb = __('Suburb','woocommerce-events');
-		$attendee_state = __('State','woocommerce-events');
-		$attendee_postalcode = __('Postalcode','woocommerce-events');
+		$order_total      = __( 'Amount Paid', 'woocommerce-events' );
+		$coupons = __('Coupons','woocommerce-events');
 
 
+        // $csv_blueprint = array(
+		// 	$attendee_email_label,
+		// 	$attendee_first_name_label,
+		// 	$attendee_last_name_label,
+        //     $job_title,
+        //     $teachers_reg,
+		// 	$attendee_company_label,
+        //     $postal_code,
+		// 	$compulsory,
+		// 	$attendee_telephone_label,
+        //     $landline,
+        //     $alt_email,
+		// 	$purchaser_first_name_label,
+		// 	$purchaser_last_name_label,
+		// 	$purchaser_email_label,
+		// 	$purchaser_phone_label,
+		// 	$purchaser_company_label,
+		// 	$billing_address_1_label,
+        //     $billing_country_label,
+        //     $billing_state_label,
+        //     $lnp,
+        //     $ws_name,
+        //     $order_date_label,
+        //     $days_attended,
+		// 	$ticket_variation_label,
+        //     $notes,
+		// 	$order_status_label,
+		// 	$order_total,
+		// 	$coupons,
+		// );
+        
+        
         $csv_blueprint = array(
-
-			// ATTENDEE DETAILS
 			$attendee_email_label,
 			$attendee_first_name_label,
 			$attendee_last_name_label,
             $job_title,
             $teachers_reg,
 			$attendee_company_label,
-			$attendee_street,
-			$attendee_suburb,
-			$attendee_state,
-			$attendee_postalcode,
+            $postal_code,
 			$attendee_telephone_label,
-			$landline,
+            $landline,
             $alt_email,
-
-			// PURCHASER DETAILS
-			$purchaser_email_label,
+            $lnp,
+			$ws_name,
 			$purchaser_first_name_label,
 			$purchaser_last_name_label,
+			$purchaser_email_label,
 			$purchaser_company_label,
-			$billing_address_1_label,
+            $billing_address_1_label,
             $billing_country_label,
             $billing_state_label,
-            $billing_postal_code_label,
-			$purchaser_phone_label,
-            $lnp,
-			$compulsory,
-            $ws_name,
             $order_date_label,
             $days_attended,
 			$ticket_variation_label,
             $notes,
 			$order_status_label,
-			$order_total,
-			$coupons,
+            $order_total
 		);
-	
+
+		
 
 		$sorted_rows   = array();
 
@@ -484,7 +348,6 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
 
 					$variation_value_output = ucwords( $variation_value_output );
 
-					// $variation_output .= $variation_name_output . ': ' . $variation_value_output;
 					$variation_output .= $variation_value_output;
 
 					$i++;
@@ -570,22 +433,12 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
 			$woocommerce_events_purchaser_email              = get_post_meta( $ticket->ID, 'WooCommerceEventsPurchaserEmail', true );
 			$woocommerce_events_compulsory              	 = get_post_meta( $ticket->ID, 'fooevents_custom_xjfhvkckwgtrkjnsxfbt', true );
 
-			$woocommerce_events_attendee_street            	 = get_post_meta( $ticket->ID, 'fooevents_custom_yopcypuhmaqkieettjxj', true );
-			$woocommerce_events_attendee_suburb            	 = get_post_meta( $ticket->ID, 'fooevents_custom_jsjnyhivxavtkmftknsy', true );
-			$woocommerce_events_attendee_state            	 = get_post_meta( $ticket->ID, 'fooevents_custom_iqlhvsqesrarencznvbb', true );
-			$woocommerce_events_attendee_postalcode          = get_post_meta( $ticket->ID, 'fooevents_custom_haglypwrtoexqbafzezy', true );
-
-			
-			
-			
-			$order_coupons = '';
+            $order_coupons = '';
 			if ( false !== $order ) {
 				$coupons_item = $order->get_used_coupons();
 				$order_coupons = $coupons_item[0];
-
 			}
 			
-
 			$customer_note = '';
 			if ( false !== $order ) {
 
@@ -600,12 +453,13 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
 
 			}
 
-			$order_total_amount = 0;
+            $order_total_amount = 0;
 			if ( false !== $order ) {
 
 				$order_total_amount = $order->get_total();
 
 			}
+
 
 			$order_date = '';
 			if ( false !== $order ) {
@@ -636,13 +490,10 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
 			$sorted_rows[ $x ][ $payment_method_label ]       = $payment_method;
 			$sorted_rows[ $x ][ $order_date_label ]           = $order_date;
 			$sorted_rows[ $x ][ $order_total ]				  = $order_total_amount;
-			$sorted_rows[ $x ][ $ws_name ] = $ws_name_value;
-			$sorted_rows[ $x ][ $coupons ] = $order_coupons;
+            $sorted_rows[ $x ][ $ws_name ] = $ws_name_value;
+            $sorted_rows[ $x ][ $coupons ] = $order_coupons;
 			$sorted_rows[ $x ][ $compulsory ] = $woocommerce_events_compulsory;
-			$sorted_rows[ $x ][ $attendee_street ] = $woocommerce_events_attendee_street;
-			$sorted_rows[ $x ][ $attendee_suburb ] = $woocommerce_events_attendee_suburb;
-			$sorted_rows[ $x ][ $attendee_state] = $woocommerce_events_attendee_state;
-			$sorted_rows[ $x ][ $attendee_postalcode] = $woocommerce_events_attendee_postalcode;
+
 
 			if ( false !== $order ) {
 
@@ -898,5 +749,5 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
 
 	}
 
-add_action( 'wp_ajax_custom_events_csv', 'custom_events_csv');
-add_action( 'wp_ajax_nopriv_custom_events_csv', 'custom_events_csv');
+add_action( 'wp_ajax_custom_events_csv_ticket', 'custom_events_csv_ticket');
+add_action( 'wp_ajax_nopriv_custom_events_csv_ticket', 'custom_events_csv_ticket');

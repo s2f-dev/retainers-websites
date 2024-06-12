@@ -81,67 +81,6 @@ $results = $wpdb->get_results(
 		) AS variations_stock,
 		(
 			SELECT
-				pmv.meta_value
-			FROM
-				{$wpdb->posts} pv
-			JOIN {$wpdb->postmeta} pmv ON
-				pv.ID = pmv.post_id
-			WHERE
-				pv.post_parent = p.ID 
-			AND 
-				pmv.meta_key = '_stock' 
-			LIMIT 1 
-		) AS inservice_stock,
-		(
-			SELECT
-				pmv.meta_value
-			FROM
-				{$wpdb->posts} pv
-			JOIN {$wpdb->postmeta} pmv ON
-				pv.ID = pmv.post_id
-			WHERE
-				pv.post_parent = p.ID 
-			AND 
-				pmv.meta_key = '_stock' 
-			LIMIT 1 
-			OFFSET 1 
-		) AS public_stock,
-		(
-			SELECT
-				COUNT(*)
-			FROM
-				{$wpdb->postmeta} pms
-			WHERE
-				pms.meta_key = 'WooCommerceEventsVariationID' 
-			AND 
-				pms.meta_value 
-			IN (
-					SELECT pvv.ID 
-					FROM {$wpdb->posts} pvv 
-					WHERE pvv.post_type = 'product_variation' 
-					AND pvv.post_parent = p.ID
-					AND pvv.ID = (SELECT pt.ID FROM {$wpdb->posts} pt WHERE post_excerpt = 'Type: In-Service' AND pt.post_parent = p.ID)
-				) 
-		) AS 'inservice_sales',
-		(
-			SELECT
-				COUNT(*)
-			FROM
-				{$wpdb->postmeta} pms
-			WHERE
-				pms.meta_key = 'WooCommerceEventsVariationID' 
-			AND 
-				pms.meta_value 
-			IN (
-					SELECT pvv.ID 
-					FROM {$wpdb->posts} pvv 
-					WHERE pvv.post_type = 'product_variation' 
-					AND pvv.post_parent = p.ID
-					AND pvv.ID = (SELECT pt.ID FROM {$wpdb->posts} pt WHERE post_excerpt = 'Type: Public' AND pt.post_parent = p.ID)
-				) 
-		) AS 'public_sales',
-		(
-			SELECT
 				COUNT(*)
 			FROM
 				{$wpdb->posts}
@@ -188,59 +127,25 @@ $results = $wpdb->get_results(
 			
 			</div>';
             echo '<table>';
-            echo '<tr>
-				<td width="130"><b>Event Date<b></td>
-				<td><b>Event</b></td> 
-				<td width="150"><b>Public Tickets</b></td> 
-				<td width="180"><b>Inservice Tickets</b></td> 
-				<td width="180"><b>Total Tickets Sold</b></td> 
-				<td width="200"><b>Total Ticket Capacity</b></td> 
-				<td width="150"><b>Action</b></td>
-				</tr>';
+            echo '<tr><td><b>Event Date<b></td><td><b>Event</b></td> <td><b>Tickets Sold</b></td> <td><b>Total Ticket Capacity</b></td> <td><b>Action</b></td></tr>';
 
             foreach ($results as $row) {
-				
-				// STOCKS & SALES
-				// Product
 				$total_tickets = $row->stock + $row->sales;
-				$stocks = $total_tickets;
                 if(!$available_tickets){
                     $available_tickets = 0;
                 } 
 
-				// Variations
+				$stocks = $total_tickets;
 				$variations_stock = $row->variations_stock;
 				if($variations_stock){
 					$stocks = $variations_stock + $row->sales;
 				}
-				// END STOCKS & SALES
-
-				// VARIATION STOCKS
-				$inservice_stocks = $row->inservice_stock;
-				$public_stocks = $row->public_stock;
-
-				// VARIATIONS SALES
-				$inservice_sales = $row->inservice_sales;
-				$public_sales = $row->public_sales;
-
-				$inservice_stocks_sales_label = '';
-				$public_stocks_sales_label = '';
-				if($variations_stock){
-					$inservice_stocks_sales_total = $inservice_sales + $inservice_stocks;
-					$public_stocks_sales_total = $public_sales + $public_stocks;
-
-					$inservice_stocks_sales_label = $inservice_sales.' of '.$inservice_stocks_sales_total;
-					$public_stocks_sales_label = $public_sales.' of '.$public_stocks_sales_total;
-				}
-	
                 echo '<tr>';
                 echo '<td>' . $row->meta_value. '</span></td>';
-                echo '<td><a href="http://jamiew109.sg-host.com/wp-admin/edit.php?post_type=event_magic_tickets&event_id='.$row->post_id.'" target="_blank">' . esc_html($row->post_title) . '</span></a></td>';
-                echo '<td>' . esc_html($public_stocks_sales_label) . '</span></td>';
-                echo '<td>' . esc_html($inservice_stocks_sales_label ) . '</span></td>';
+                echo '<td><a href="https://littlescientists.org.au/wp-admin/edit.php?post_type=event_magic_tickets&event_id='.$row->post_id.'" target="_blank">' . esc_html($row->post_title) . '</span></a></td>';
                 echo '<td>' . esc_html($row->sales) . '</span></td>';
                 echo '<td>' . esc_html($stocks) . '</span></td>';
-                echo '<td> <a href="http://jamiew109.sg-host.com/wp-admin/admin-ajax.php?action=custom_events_csv&event='.$row->ID.'"> Download CSV </td>';
+                echo '<td> <a href="https://littlescientists.org.au/wp-admin/admin-ajax.php?action=custom_events_csv&event='.$row->ID.'"> Download CSV </td>';
                 echo '</tr>';
             }
             echo '</table>';
@@ -362,8 +267,8 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
 			$attendee_email_label,
 			$attendee_first_name_label,
 			$attendee_last_name_label,
-            $job_title,
-            $teachers_reg,
+			$job_title,
+			$teachers_reg,
 			$attendee_company_label,
 			$attendee_street,
 			$attendee_suburb,
@@ -371,7 +276,7 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
 			$attendee_postalcode,
 			$attendee_telephone_label,
 			$landline,
-            $alt_email,
+			$alt_email,
 
 			// PURCHASER DETAILS
 			$purchaser_email_label,
@@ -379,17 +284,17 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
 			$purchaser_last_name_label,
 			$purchaser_company_label,
 			$billing_address_1_label,
-            $billing_country_label,
-            $billing_state_label,
-            $billing_postal_code_label,
+			$billing_country_label,
+			$billing_state_label,
+			$billing_postal_code_label,
 			$purchaser_phone_label,
-            $lnp,
+			$lnp,
 			$compulsory,
-            $ws_name,
-            $order_date_label,
-            $days_attended,
+			$ws_name,
+			$order_date_label,
+			$days_attended,
 			$ticket_variation_label,
-            $notes,
+			$notes,
 			$order_status_label,
 			$order_total,
 			$coupons,
